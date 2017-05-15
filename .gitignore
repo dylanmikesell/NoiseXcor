@@ -1,0 +1,14 @@
+# Ignore Mac specific files
+**/*.DS_Store
+
+# Ignore data files
+DATA
+
+# Ignore correlation files
+COR
+
+# Ignore all backup files
+**/._*.m
+
+# Ignore all MATLAB files
+**/*.mat
