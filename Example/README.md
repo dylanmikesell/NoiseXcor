@@ -20,6 +20,8 @@ The code works in two parts.
 * The first part (__A0_makeStationDataBase.m__) scans a folder for valid data and creates a database of files to be correlated.
 * The second part (__A1_correlateStationDataBase.m__) reads the database, preprocesses the data and runs the correlations based on user specified parameters.
 
+You can download test data [here](http://cgiss.boisestate.edu/~dmikesell/data.zip). Unzip the folder and put the data in the Example/ folder.
+
 Each correlation is written to a new _waveform_ object with proper metadata. These correlation-derived waveforms can then be loaded into MATLAB for further processing (e.g. stacking, velocity analysis, etc.).
 
 NOTE: There is a simple script (__A2_plotStationPairCorrelationPanel.m__) that can be used to plot a correlation panel.
