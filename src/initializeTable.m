@@ -1,5 +1,5 @@
 function stationData = initializeTable( projectDirectory, dataDirectory, ... 
-    dataBaseName, fileType, data_structure, startDate, endDate )
+    dataBaseName, fileType, data_structure, startDate, endDate, channel )
 %  
 % USAGE: stationData = initializeTable( projectDirectory, dataDirectory, ...
 %   dataBaseName, fileType, data_structure, startDate, endDate )
@@ -21,6 +21,7 @@ function stationData = initializeTable( projectDirectory, dataDirectory, ...
 %   data_structure   = 'SDS', 'BUD', 'IDDS', 'PDF' (only 'BUD' implemented)
 %   startDate        = first day of database ['YYYY-MM-DD HH:MM:SS.FFF']
 %   endDate          = last day of database ['YYYY-MM-DD HH:MM:SS.FFF']
+%   channel          = channel
 % OUTPUT:
 %  stationData = a database structure containing file path information.
 %   The database file is populated and also written to disk.
@@ -103,6 +104,8 @@ stationData.dataDirectory    = dataDirectory;
 stationData.projectDirectory = projectDirectory;
 stationData.fileType         = fileType;
 
+data_count = 0; % keep track of how many data you actually add to table
+
 for iFile = 1 : numel( fileList )
     % fprintf( 'Processing: %s\n', fileList(iFile).name );
     
@@ -129,22 +132,27 @@ for iFile = 1 : numel( fileList )
     
     if dataDate <= datenum( endDate ) && dataDate >= datenum( startDate )
         
-        dayIdx = dataDate - datenum( startDate ) + 1; % ordinal number
-
-        fprintf( 'Adding waveform at %s.%s.%s.%s on %s\n', ...
-            fileNetwork, fileStation, fileLocation, fileChannel, ...
-            datestr( dayIdx-1 + datenum(startDate) ) );
-
-        thisStation = [fileNetwork '/' fileStation];
-        k = strfind( stationFolders, thisStation );
-        
-        % old empty string test implementation
-        % stationIdx = ~cellfun(@isempty,k);
-        % version below is faster according to:
-        % https://www.mathworks.com/matlabcentral/answers/16383-how-do-i-check-for-empty-cells-within-a-list
-        stationIdx = ~cellfun('isempty', k);
-        
-        stationData.DataTable(stationIdx,dayIdx) = { fullfile( fileList(iFile).folder, fileList(iFile).name ) }; % Insert file with path
+        % check that channel is in input list
+        if sum( strcmp( fileChannel, channel ) ) == 1
+            
+            dayIdx = dataDate - datenum( startDate ) + 1; % ordinal number
+            
+            fprintf( 'Adding waveform at %s.%s.%s.%s on %s\n', ...
+                fileNetwork, fileStation, fileLocation, fileChannel, ...
+                datestr( dayIdx-1 + datenum(startDate) ) );
+            
+            thisStation = [fileNetwork '/' fileStation];
+            k = strfind( stationFolders, thisStation );
+            
+            % old empty string test implementation
+            % stationIdx = ~cellfun(@isempty,k);
+            % version below is faster according to:
+            % https://www.mathworks.com/matlabcentral/answers/16383-how-do-i-check-for-empty-cells-within-a-list
+            stationIdx = ~cellfun('isempty', k);
+            
+            stationData.DataTable(stationIdx,dayIdx) = { fullfile( fileList(iFile).folder, fileList(iFile).name ) }; % Insert file with path
+            data_count = data_count + 1; % update data counter
+        end
     end
 end
 
@@ -158,4 +166,5 @@ else
     fprintf('Found %d unique stations in %d network.\n', nStations, numel(networkName) );
 end
 fprintf( 'Found %d data files.\n', numel( fileList ) );
+fprintf( 'Added %d data files to table.\n', data_count );
 fprintf( 'Finished writing database file: %s\n', fullfile( projectDirectory, dataBaseName ) );
