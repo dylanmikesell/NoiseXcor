@@ -13,6 +13,8 @@ files = dir( inputDir );
 idx = [files.isdir];
 files(idx) = [];
 
+
+
 for ii = 1 : numel( files )
     load( fullfile( inputDir, files(ii).name ) );
     Cmat(:,ii) = get( statC, 'c1' );

@@ -1,19 +1,19 @@
-function stationData = initializeTable( projectDirectory, dataDirectory, ... 
-    dataBaseName, fileType, data_structure, startDate, endDate, channel )
-%  
+function stationData = initializeTable( project_directory, data_directory, ...
+    database_name, file_type, data_structure, start_date, end_date, channel_list )
+%
 % USAGE: stationData = initializeTable( projectDirectory, dataDirectory, ...
 %   dataBaseName, fileType, data_structure, startDate, endDate )
-% 
+%
 % DESCRIPTION: This function will create a database file that contains the
 % information needed to run cross correlations of seismic noise. This
 % database contains the path and file names of all seismic data files
 % within a specified time frame. The code will search through all
 % subfolders of 'dataDirectory' and return paths to all 'fileType' data.
-% 
+%
 % A database file is written in the '.mat' format and used later for
 % parellel processing of raw seismic data followed by correlation.
-% 
-% INPUT: 
+%
+% INPUT:
 %   projectDirectory = path to folder where output files will be written
 %   dataDirectory    = path to data (not down into the NET/STA/ folders)
 %   dataBaseName     = name of the datebase file we create
@@ -25,146 +25,287 @@ function stationData = initializeTable( projectDirectory, dataDirectory, ...
 % OUTPUT:
 %  stationData = a database structure containing file path information.
 %   The database file is populated and also written to disk.
-% 
+%
 % NOTE: I copied data formats from MSNoise. Currently only BUD is implemented
 %
 % data_structure['SDS']  = "YEAR/NET/STA/CHAN.TYPE/NET.STA.LOC.CHAN.TYPE.YEAR.DAY"
 % data_structure['BUD']  = "NET/STA/STA.NET.LOC.CHAN.YEAR.DAY"
 % data_structure['IDDS'] = "YEAR/NET/STA/CHAN.TYPE/DAY/NET.STA.LOC.CHAN.TYPE.YEAR.DAY.HOUR"
 % data_structure['PDF']  = "YEAR/STA/CHAN.TYPE/NET.STA.LOC.CHAN.TYPE.YEAR.DAY"
-% 
+%
 % Written by: Dylan Mikesell (dylanmikesell@boisetate.edu)
-% Last modified: 22 February 2017 
-% 
+% Last modified: 22 February 2017
+%
 % Example:
-% 
+%
 % projectDirectory = '/hammer/SOFTWARE/NoiseXcor/Example';
 % dataDirectory    = fullfile( projectDirectory, 'DATA');
-% dataBaseName     = 'Llaima2015_db.mat'; 
+% dataBaseName     = 'Llaima2015_db.mat';
 % fileType         = 'sac';
-% data_structure   = 'BUD'; 
-% startDate        = '2015-01-01 00:00:00'; 
+% data_structure   = 'BUD';
+% startDate        = '2015-01-01 00:00:00';
 % endDate          = '2015-04-01 00:00:00';
-% 
+%
 % stationData = initializeTable( projectDirectory, dataDirectory, ...
 %   dataBaseName, fileType, data_structure, startDate, endDate );
 
 
 %--------------------------------------------------------------------------
-% start scanning through the data files
+% Check MATLAB version (currently working in MATLAB R2017a)
+%--------------------------------------------------------------------------
+disp( ['Using MATLAB release R' version('-release')] );
+% assert( strcmp('2017a',version('-release'))==1,...
+%     'Not using MATLAB 2017a. Current version of code works with 2017a.' );
+
+assert( isdir( project_directory ) == 1,...
+    'Project directory does not exist. Check directory PATH!')
+
+%--------------------------------------------------------------------------
+% Check data format
+%--------------------------------------------------------------------------
+assert(...
+    strcmp(file_type,'sac')==1 ||...
+    strcmp(file_type,'miniseed')==1 ||...
+    strcmp(file_type,'seed')==1,...
+    'Data type not recognized. Must be ''sac'', ''seed'' or ''miniseed''.');
+
+if strcmp(file_type,'miniseed')
+    file_type = 'seed'; % get correct name for waveform()
+end
+
+%--------------------------------------------------------------------------
+% Check data_structure
+%--------------------------------------------------------------------------
+assert(...
+    strcmp(data_structure,'BUD')==1 ||...
+    strcmp(data_structure,'DMT')==1,...
+    'Data structure not recognized. Must be ''BUD'' or ''DMT''.');
+
+%--------------------------------------------------------------------------
+% scan through the data files in all subdirectories
 %--------------------------------------------------------------------------
 
-% get list of files
-fileList = dir( fullfile( dataDirectory, '**/*.*') );
+switch data_structure % account for different naming conventions
+    
+    case 'BUD' % data_structure['BUD'] = "NET/STA/STA.NET.LOC.CHAN.YEAR.DAY"
+        % get list of files
+        fileList = dir( fullfile( data_directory, '**/*.*') );
+    case 'DMT' % data_structure['DMT'] = "continuous???/NET.STA.LOC.CHAN"
+        % get list of files
+        fileList = dir( fullfile( data_directory, '**/*.*') );
+        % use data in 'processed' folder
+        processed_idx = strfind( {fileList.folder}, 'processed' );
+        kill_idx = cellfun('isempty', processed_idx);
+        fileList(kill_idx) = [];
+end
 
 % remove directories from the list
 dirIdx = [fileList.isdir];
 fileList(dirIdx) = [];
 clear dirIdx;
 
-% get file extension and compare to the
-names = {fileList.name}; % names of files found
-nFiles = numel( names ); % number of files found
-ext = cell(nFiles,1); % allocate vector
-for ii = 1 : nFiles
-    [~, ~, tmpExt] = fileparts( names{ii} ); %file extension
-    ext{ii} = lower( tmpExt(2:end) ); % remove '.' in front of extension
+% remove hidden files that start with '.'
+fileList = fileList( arrayfun( @(x) ~strcmp(x.name(1),'.'), fileList ) );
+
+%--------------------------------------------------------------------------
+% Determine unique networks and stations
+%--------------------------------------------------------------------------
+switch data_structure % account for different naming conventions
+    
+    case 'BUD' % data_structure['BUD'] = "NET/STA/STA.NET.LOC.CHAN.YEAR.DAY"
+        
+        % get information about the first file
+        file_info      = split( fileList(1).name, '.' );
+        file_station  = file_info{1};
+        file_network  = file_info{2};
+        file_location = file_info{3};
+        file_channel  = file_info{4};
+
+        % Build the unique station identifier
+        instrument_list = {strcat(...
+            char(file_network), '.', char(file_station), '.',...
+            char(file_location), '.', char(file_channel) ) };
+        num_instruments = 1;
+        
+        for iFile = 2 : numel( fileList )
+            
+            file_info     = split( fileList(iFile).name, '.' );
+            file_station  = file_info{1};
+            file_network  = file_info{2};
+            file_location = file_info{3};
+            file_channel  = file_info{4};
+
+            % Build the unique station identifier
+            instrument = strcat(...
+                char(file_network), '.', char(file_station), '.',...
+                char(file_location), '.', char(file_channel) );
+            
+            % Check is instrument is already in list
+            if ~logical( sum( strcmp( instrument_list, instrument ) ) )
+                fprintf('Adding %s\n', instrument);
+                num_instruments = num_instruments + 1;
+                instrument_list{ num_instruments } = instrument;
+            end
+            
+        end % end loop over all file found
+              
+    case 'DMT' % data_structure['DMT'] = "continuous???/NET.STA.LOC.CHAN"
+        
+        % get information about the first file
+        file_info      = split( fileList(1).name, '.' );
+        file_network  = file_info{1};
+        file_station  = file_info{2};
+        file_location = file_info{3};
+        file_channel  = file_info{4};
+        
+        % Build the unique station identifier
+        instrument_list = {strcat(...
+            char(file_network), '.', char(file_station), '.',...
+            char(file_location), '.', char(file_channel) ) };
+        num_instruments = 1;
+        
+        for iFile = 2 : numel( fileList )
+            
+            file_info     = split( fileList(iFile).name, '.' );
+            file_network  = file_info{1};
+            file_station  = file_info{2};
+            file_location = file_info{3};
+            file_channel  = file_info{4};
+            
+            % Build the unique station identifier
+            instrument = strcat(...
+                char(file_network), '.', char(file_station), '.',...
+                char(file_location), '.', char(file_channel) );
+            
+            % Check is instrument is already in list
+            if ~logical( sum( strcmp( instrument_list, instrument ) ) )
+                fprintf('Adding %s\n', instrument);
+                num_instruments = num_instruments + 1;
+                instrument_list{ num_instruments } = instrument;
+            end
+        end % end loop over all files found 
 end
 
-fileIdx = strcmp( ext, fileType ); % determine files that match data format
-fileList = fileList( fileIdx ); % keep only those files
-clear ext names nFiles tmpExt fileIdx ii
+%--------------------------------------------------------------------------
+% Check that channel is in channel_list
+%--------------------------------------------------------------------------
+disp('Removing channels not in channel list...')
+tmp_split = split( instrument_list, '.' );
+networks  = tmp_split(:,:,1);  
+stations  = tmp_split(:,:,2); 
+locations = tmp_split(:,:,3);
+channels  = tmp_split(:,:,4);
 
-% Get station and network data
-stationFolders = transpose( unique( {fileList.folder} ) );
-nStations = numel( stationFolders ); % number of unique NET/STA paths
-stationName = cell(nStations,1); % allocate
-networkName = cell(nStations,1); % allocate
-for ii = 1 : nStations
-    tmp = split(stationFolders{ii},'/');
-    stationName{ii} = tmp(end);
-    networkName{ii} = tmp(end-1);
+keep_idx = zeros( numel(instrument_list), 1 ); % set all instruments to false
+% Set instrument to true if channel matches channel list
+for ii = 1 : numel( channel_list )
+    idx = strcmp( channel_list{ii}, channels );
+    keep_idx(idx) = 1;
 end
-[~,netIdx] = unique( [networkName{:}] );
-networkName = networkName(netIdx);
-clear ii tmp netIdx
+% Keep only instruments that pass the channel test
+instrument_list = instrument_list( logical( keep_idx ) );
 
-%% Process the file list and populate the station table
+%--------------------------------------------------------------------------
+% Print information to the user
+%--------------------------------------------------------------------------
+tmp_split = split( instrument_list, '.' );
+networks  = unique( tmp_split(:,:,1) );  
+stations  = unique( tmp_split(:,:,2) ); 
 
+fprintf('Found %d unique networks:\n', numel( networks ) );
+fprintf('%s\n', networks{:} );
+fprintf('Found %d unique stations:\n', numel( stations ) );
+fprintf('%s\n', stations{:} );
+
+%--------------------------------------------------------------------------
 % Build a structure to keep track of days with data
-stationData.stationList = stationFolders;
-stationData.Date = datenum( startDate ) : datenum( endDate );
+%--------------------------------------------------------------------------
+days      = datenum( start_date ) : datenum( end_date ); % integer list of days
+nDays     = numel( days ); % number of days in the table
+nStations = numel( instrument_list );
 
-nDays = numel( stationData.Date ); % number of days in the table
-
+stationData                  = struct;
+stationData.Date             = days;
 stationData.DataTable        = cell( nStations, nDays );
 stationData.DataTable(:)     = {'N'}; % 'N' stands for no data
 stationData.files            = fileList;
-stationData.dataDirectory    = dataDirectory;
-stationData.projectDirectory = projectDirectory;
-stationData.fileType         = fileType;
+stationData.dataDirectory    = data_directory;
+stationData.projectDirectory = project_directory;
+stationData.fileType         = file_type;
+
+%--------------------------------------------------------------------------
+% Populate the structure database with files
+%--------------------------------------------------------------------------
 
 data_count = 0; % keep track of how many data you actually add to table
 
 for iFile = 1 : numel( fileList )
-    % fprintf( 'Processing: %s\n', fileList(iFile).name );
+    
+    fprintf( 'Processing: %s\n', fileList(iFile).name );
     
     switch data_structure % account for different naming conventions
-        case 'SDS' % data_structure['SDS'] = "YEAR/NET/STA/CHAN.TYPE/NET.STA.LOC.CHAN.TYPE.YEAR.DAY"
-            % not implemented yet
-        case 'BUD' % data_structure['BUD'] = "NET/STA/STA.NET.LOC.CHAN.YEAR.DAY"
-            fileInfo     = split( fileList(iFile).name, '.' );
-            fileStation  = fileInfo{1};
-            fileNetwork  = fileInfo{2};
-            fileLocation = fileInfo{3};
-            fileChannel  = fileInfo{4};
-            fileYear     = fileInfo{5};
-            fileJulDay   = fileInfo{6};     
-        case 'IDDS' % data_structure['IDDS'] = "YEAR/NET/STA/CHAN.TYPE/DAY/NET.STA.LOC.CHAN.TYPE.YEAR.DAY.HOUR"
-            % not implemented yet
-        case 'PDF' % data_structure['PDF'] = "YEAR/STA/CHAN.TYPE/NET.STA.LOC.CHAN.TYPE.YEAR.DAY"
-            % not implemented yet
-        otherwise
-            error('No data structures besides BUD implemented yet');
-    end
-    
-    dataDate = datenum( [fileYear '.' fileJulDay], 'yyyy.dd' );
-    
-    if dataDate <= datenum( endDate ) && dataDate >= datenum( startDate )
         
-        % check that channel is in input list
-        if sum( strcmp( fileChannel, channel ) ) == 1
-            
-            dayIdx = dataDate - datenum( startDate ) + 1; % ordinal number
-            
-            fprintf( 'Adding waveform at %s.%s.%s.%s on %s\n', ...
-                fileNetwork, fileStation, fileLocation, fileChannel, ...
-                datestr( dayIdx-1 + datenum(startDate) ) );
-            
-            thisStation = [fileNetwork '/' fileStation];
-            k = strfind( stationFolders, thisStation );
-            
-            % old empty string test implementation
-            % stationIdx = ~cellfun(@isempty,k);
-            % version below is faster according to:
-            % https://www.mathworks.com/matlabcentral/answers/16383-how-do-i-check-for-empty-cells-within-a-list
-            stationIdx = ~cellfun('isempty', k);
-            
-            stationData.DataTable(stationIdx,dayIdx) = { fullfile( fileList(iFile).folder, fileList(iFile).name ) }; % Insert file with path
-            data_count = data_count + 1; % update data counter
-        end
+        case 'BUD' % data_structure['BUD'] = "NET/STA/STA.NET.LOC.CHAN.YEAR.DAY"
+            file_info       = split( fileList(iFile).name, '.' );
+            file_station    = file_info{1};
+            file_network    = file_info{2};
+            file_location   = file_info{3};
+            file_channel    = file_info{4};
+            file_year       = file_info{5};
+            file_julian_day = file_info{6};
+        case 'DMT' % data_structure['DMT'] = "continuous???/NET.STA.LOC.CHAN"
+            file_info     = split( fileList(iFile).name, '.' );
+            file_network  = file_info{1};
+            file_station  = file_info{2};
+            file_location = file_info{3};
+            file_channel  = file_info{4};
     end
-end
 
-% save database file
-save( fullfile( projectDirectory, dataBaseName ), 'stationData');
+    % Build the unique station identifier
+    instrument = strcat(...
+        char(file_network), '.', char(file_station), '.',...
+        char(file_location), '.', char(file_channel) );
+    
+    % check that instrument is in list
+    stationIdx = strcmp( instrument, instrument_list );
+    if sum( stationIdx ) == 1
 
-% write some stuff to the screen for the user
-if numel(networkName) > 1
-    fprintf('Found %d unique stations over %d networks.\n', nStations, numel(networkName) );
-else
-    fprintf('Found %d unique stations in %d network.\n', nStations, numel(networkName) );
-end
+        file_path = { fullfile( fileList(iFile).folder, fileList(iFile).name ) }; % get file with path
+        
+        % Have to actually read miniseed and seed data to get year and
+        % julian day
+        switch data_structure % account for different naming conventions
+            case 'DMT'
+                w = waveform( file_path{1}, 'seed' );
+                % Keep in mind that when we download with obspyDMT, we add
+                % 1 second to data file start
+                dataDate = datenum( datestr(get(w,'start')+1/3600/24), 'dd-mmm-yyyy' );
+            case 'BUD'
+                % compute the data date
+                dataDate = datenum( [file_year '.' file_julian_day], 'yyyy.dd' );
+        end
+        
+        % check that data is in time window of interest
+        if dataDate <= datenum( end_date ) && dataDate >= datenum( start_date )
+
+            dayIdx = dataDate - datenum( start_date ) + 1; % ordinal number
+            
+            stationIdx = find( stationIdx == 1); % determine instrument row in data table
+
+            fprintf( 'Adding waveform %s on %s\n', ...
+                instrument_list{stationIdx}, ...
+                datestr( dayIdx-1 + datenum(start_date) ) );
+
+            stationData.DataTable( stationIdx, dayIdx ) = file_path; % save file with path
+            data_count = data_count + 1; % update data counter
+        end % end if over date range
+    end % end if over instrument list
+end % end loop through files
+
+%--------------------------------------------------------------------------
+% Finish and save the database
+%--------------------------------------------------------------------------
+save( fullfile( project_directory, database_name ), 'stationData');
 fprintf( 'Found %d data files.\n', numel( fileList ) );
 fprintf( 'Added %d data files to table.\n', data_count );
-fprintf( 'Finished writing database file: %s\n', fullfile( projectDirectory, dataBaseName ) );
+fprintf( 'Finished writing database file: %s\n', fullfile( project_directory, database_name ) );
