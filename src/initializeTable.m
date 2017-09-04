@@ -1,27 +1,32 @@
 function stationData = initializeTable( project_directory, data_directory, ...
     database_name, file_type, data_structure, start_date, end_date, channel_list )
 %
-% USAGE: stationData = initializeTable( projectDirectory, dataDirectory, ...
-%   dataBaseName, fileType, data_structure, startDate, endDate )
+% USAGE: stationData = initializeTable( project_directory, data_directory, ...
+%   database_name, file_type, data_structure, start_date, end_date, channel_list )
 %
 % DESCRIPTION: This function will create a database file that contains the
 % information needed to run cross correlations of seismic noise. This
 % database contains the path and file names of all seismic data files
 % within a specified time frame. The code will search through all
-% subfolders of 'dataDirectory' and return paths to all 'fileType' data.
+% subfolders of 'data_directory' and return paths to all 'file_type' data.
+% 
+% NOTES: When using 'DMT' the process is a bit slow because each miniseed
+% file has to be loaded and the start time read from the header. This is
+% because the file name does not contain information about the timing of
+% the data.
 %
 % A database file is written in the '.mat' format and used later for
 % parellel processing of raw seismic data followed by correlation.
 %
 % INPUT:
-%   projectDirectory = path to folder where output files will be written
-%   dataDirectory    = path to data (not down into the NET/STA/ folders)
-%   dataBaseName     = name of the datebase file we create
-%   fileType         = 'sac', 'seed', 'miniseed' (only 'sac' implemented)
-%   data_structure   = 'SDS', 'BUD', 'IDDS', 'PDF' (only 'BUD' implemented)
-%   startDate        = first day of database ['YYYY-MM-DD HH:MM:SS.FFF']
-%   endDate          = last day of database ['YYYY-MM-DD HH:MM:SS.FFF']
-%   channel          = channel
+%   project_directory = path to folder where output files will be written
+%   data_directory    = path to data (not down into the NET/STA/ folders)
+%   database_name     = name of the datebase file we create
+%   file_type         = 'sac', 'seed', 'miniseed' (only 'sac' implemented)
+%   data_structure    = 'SDS', 'BUD', 'IDDS', 'PDF', 'DMT' (only 'BUD' and 'DMT' currently implemented; 'DMT' only looks for data in the 'processed' folder!)
+%   start_date        = first day of database ['YYYY-MM-DD HH:MM:SS.FFF']
+%   end_date          = last day of database ['YYYY-MM-DD HH:MM:SS.FFF']
+%   channel_list      = channel_list (cell list of channels to use; e.g. {'BHZ','BHE'})
 % OUTPUT:
 %  stationData = a database structure containing file path information.
 %   The database file is populated and also written to disk.
@@ -32,9 +37,10 @@ function stationData = initializeTable( project_directory, data_directory, ...
 % data_structure['BUD']  = "NET/STA/STA.NET.LOC.CHAN.YEAR.DAY"
 % data_structure['IDDS'] = "YEAR/NET/STA/CHAN.TYPE/DAY/NET.STA.LOC.CHAN.TYPE.YEAR.DAY.HOUR"
 % data_structure['PDF']  = "YEAR/STA/CHAN.TYPE/NET.STA.LOC.CHAN.TYPE.YEAR.DAY"
+% data_structure['DMT']  = "continuous???/NET.STA.LOC.CHAN"
 %
 % Written by: Dylan Mikesell (dylanmikesell@boisetate.edu)
-% Last modified: 22 February 2017
+% Last modified: 4 September 2017
 %
 % Example:
 %

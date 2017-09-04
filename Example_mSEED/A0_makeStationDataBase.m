@@ -8,18 +8,17 @@ clc
 addpath('/hammer/SOFTWARE/NoiseXcor/src');
 
 % folder where all files will be written
-% project_directory = '/hammer/SOFTWARE/NoiseXcor/Example_mSEED';
-% data_directory = fullfile( project_directory, 'DATA/RAW'); % where are the data?
+project_directory = '/hammer/SOFTWARE/NoiseXcor/Example_mSEED';
+data_directory = fullfile( project_directory, 'DATA'); % where are the data?
 
-project_directory = '/Volumes/ESlab/Data_02/';
-data_directory = fullfile( project_directory, 'DATA2010/201002'); % where are the data?
-
+% project_directory = '/Volumes/ESlab/Data_02/';
+% % data_directory = fullfile( project_directory, 'DATA2010/201002'); % where are the data?
+% data_directory = project_directory;
 
 database_name  = 'Polenet_db.mat'; % what do you want call your database
 
 file_type       = 'miniseed'; % 'sac', 'seed', 'miniseed'
-data_structure  = 'DMT'; % 'SDS', 'BUD', 'IDDS', 'PDF', 'DMT' (only 'BUD' and 'DMT' currently implemented)
-% 'DMT' is for data downloaded with obspyDMT
+data_structure  = 'DMT'; % 'SDS', 'BUD', 'IDDS', 'PDF', 'DMT' (only 'BUD' and 'DMT' currently implemented) -- 'DMT' is for data downloaded with obspyDMT
 channel         = {'BHZ','HHZ'}; % a cell list of any channels to use
 
 % enter time of earliest data -- MAT file names are relative to this.
