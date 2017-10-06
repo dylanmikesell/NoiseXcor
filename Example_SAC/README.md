@@ -115,6 +115,7 @@ Within each of the main codes, the user needs to set a few parameters. Below we 
 	corrParam.resampleFrequency   = 20; % [Hz] 
 	
 	%-----------------------------------------------------------------------
+	
 	% beam forming parameters choice (not fully implemented yet)
 	
 	% 1=save, 0=do not save (writes beamform matrix)
@@ -152,9 +153,9 @@ You can give the input directory and the code will plot that station pair. Here 
 
 The data formats follow the MSNoise format.
 
-	% data_structure['SDS']  = "YEAR/NET/STA/CHAN.TYPE/NET.STA.LOC.CHAN.TYPE.YEAR.DAY"
-	% data_structure['BUD']  = "NET/STA/STA.NET.LOC.CHAN.YEAR.DAY"
-	% data_structure['IDDS'] = "YEAR/NET/STA/CHAN.TYPE/DAY/NET.STA.LOC.CHAN.TYPE.YEAR.DAY.HOUR"
-	% data_structure['PDF']  = "YEAR/STA/CHAN.TYPE/NET.STA.LOC.CHAN.TYPE.YEAR.DAY"
+	data_structure['SDS']  = "YEAR/NET/STA/CHAN.TYPE/NET.STA.LOC.CHAN.TYPE.YEAR.DAY"
+	data_structure['BUD']  = "NET/STA/STA.NET.LOC.CHAN.YEAR.DAY"
+	data_structure['IDDS'] = "YEAR/NET/STA/CHAN.TYPE/DAY/NET.STA.LOC.CHAN.TYPE.YEAR.DAY.HOUR"
+	data_structure['PDF']  = "YEAR/STA/CHAN.TYPE/NET.STA.LOC.CHAN.TYPE.YEAR.DAY"
 
 A user can alter src/initializeTable.m to incorporate new data formats. We have not yet had data in a format other than BUD, so we have not implemented anything else. If someone wants to share other formats, we would be happy to implement them. 
