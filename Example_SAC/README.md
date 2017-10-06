@@ -115,7 +115,6 @@ Within each of the main codes, the user needs to set a few parameters. Below we 
 	corrParam.resampleFrequency   = 20; % [Hz] 
 	
 	%-----------------------------------------------------------------------
-	
 	% beam forming parameters choice (not fully implemented yet)
 	
 	% 1=save, 0=do not save (writes beamform matrix)
