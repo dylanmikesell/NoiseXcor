@@ -46,70 +46,100 @@ Within each of the main codes, the user needs to set a few parameters. Below we 
 2) __A1_correlateStationDataBase.m__
 
 	%-----------------------------------------------------------------------
+	
 	% parallel computation parameters
+	
 	np = 1; % number of processors to use
 	
 	%-----------------------------------------------------------------------
+	
 	% filter number is used to keep track of completed jobs
+	
 	corrFilter.filterNum = 0; % can be any number
+	
 	%-----------------------------------------------------------------------
+	
 	% time domain normalization choice
 	
 	% =1 if normalize, =0 if no amplitude normalization
+	
 	corrFilter.ampNorm  = 1;
 	 
 	% 'abs', 'bit', 'rms'
+	
 	corrFilter.timeNorm = 'bit'; 
 	
 	%-----------------------------------------------------------------------
+	
 	% spectral whitening choice
 	
+	
 	corrFilter.whiten  = 1; % 0=off, 1=on
+	
 	corrFilter.wfmin   = 0.5; % [Hz] low end of whitening
+	
 	corrFilter.wfmax   = 5.0; % [Hz] high end of whitening
+	
 	corrFilter.wMethod = 'ftn';
 	
 	% Notes on the type of whitening to apply (wMethod). This can be the followig:
+	
 	% 'ftn'   = frequency-time normalization (Shen et al. 2012).
+	
 	% 'poli'  = moving window from Piero Poli
+	
 	% 'sgn'   = unit amplitude for all frequencies as in msnoise (not yet implemented)
+	
 	% 'haney' = smoothed moving window from Matt Haney (not yet implemented)
 	
 	%-----------------------------------------------------------------------
+	
 	% correlation parameters choice
 	
 	% [min] correlation window length
+	
 	corrParam.windowLengthMinutes = 60;
 	
 	% size of overlap [e.g. 1=100%, 0=0%, 0.5=50%]
+	
 	corrParam.overlapPercent      = 0.0; 
 	
 	% [sec] maximum time length to save of the correlation function (this is for one direction so actual correlation trace will be twice the this length)
+	
 	corrParam.tMaxOut             = 120;
 	
 	% Save computation time by resampling data prior to correlation.
+	
 	% Also saves disk space when writing output waveforms.
+	
 	corrParam.resampleFrequency   = 20; % [Hz] 
 	
 	%-----------------------------------------------------------------------
+	
 	% beam forming parameters choice (not fully implemented yet)
 	
 	% 1=save, 0=do not save (writes beamform matrix)
+	
 	corrParam.saveBeam  = 0; 
 	
 	% [km/s] minimum velocity for beam forming
+	
 	corrParam.beam_cmin = 1.0;
 	
 	% [Hz] frequencies for beam forming, can be vector
+	
 	corrParam.beam_freqs = [];
 	
 	% Station Coordinate file 
+	
 	corrParam.coordFile = []; 
 	
-	% extra parameters for amplitude recovery of correlations (development
-	% code). Just leave as is for now.
+	% extra parameters for amplitude recovery of correlations (development code). Just leave as is for now.
+	
 	corrParam.smoothMethod = 'taper'; % can be 'taper' or 'median'
+	
 	corrParam.Wn           = 3;
+	
 	corrParam.K            = 2*corrParam.Wn-1;
 	
 
@@ -118,7 +148,6 @@ Within each of the main codes, the user needs to set a few parameters. Below we 
 	inputDir = './COR/00/CRIZ-TENZ';
 	
 You can give the input directory and the code will plot that station pair. Here we plot the correlations between station CRIZ and station TENZ.
-
 
 ### Extending to different formats
 
