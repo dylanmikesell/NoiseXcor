@@ -55,6 +55,7 @@ tic % start the timer
 nDays     = numel( stationData.Date );
 DataTable = stationData.DataTable; % declare outside of parfor loop
 fileType  = stationData.fileType; % declare outside of parfor loop
+dates     = stationData.Date; % declare outside of parfor loop 
 
 if np > 1 % do parallel computation
     
@@ -64,7 +65,7 @@ if np > 1 % do parallel computation
     
     parfor(iDay = 1:nDays, np) % loop through each day and correlate
         runCorrelation( iDay, nDays, DataTable, fileType, corrParam, ...
-            corrFilter, outputDir );     
+            corrFilter, outputDir, dates(iDay) );     
     end
     
     % turn off the parallel pool after correlations finish
@@ -77,7 +78,7 @@ else % do serial computation
     for iDay = 1 : nDays % loop through each day and correlate
         
         runCorrelation( iDay, nDays, DataTable, fileType, corrParam, ...
-            corrFilter, outputDir );     
+            corrFilter, outputDir,  dates(iDay) );     
 
     end
     
@@ -91,7 +92,7 @@ end
 % Main routine to run correlations
 %--------------------------------------------------------------------------
 function runCorrelation( iDay, nDays, DataTable, fileType, corrParam, ...
-    corrFilter, outputDir )
+    corrFilter, outputDir, startDay )
 
 fprintf('\nCorrelating day %d of %d\n', iDay, nDays); % print information
 todaysFiles = DataTable(:,iDay); % get data files for this day
@@ -106,7 +107,7 @@ if ~isempty( todaysFiles )
     end
     fprintf('Finished loading %d waveforms\n', numel( todaysFiles ) );
     % run the correlations
-    correlateWindows( w, corrParam, corrFilter, outputDir );
+    correlateWindows( w, corrParam, corrFilter, outputDir, startDay );
 else
     disp('No data to correlate toady.');
 end

@@ -1,4 +1,5 @@
-function correlateWindows( W, corrParam, corrFilter, outputDirectory )
+function correlateWindows( W, corrParam, corrFilter, outputDirectory,...
+    startDay)
 
 % idx1 = strcmp(get(W,'station'),'CRIZ');  
 % idx2 = strcmp(get(W,'station'),'PV01'); 
@@ -36,7 +37,8 @@ fprintf('Number of windows %d.\n',nWindows);
 
 %--------------------------------------------------------------------------
 % start time information
-startTime = floor( min( get( W, 'start' ) ) );
+% startTime = floor( min( get( W, 'start' ) ) );
+startTime = startDay; % make sure you start on the day in the stationData table
 startSTR = datestr(startTime,'YYYY-mm-DD HH:MM:SS.FFF');
 fprintf('Correlations starting: %s\n', startSTR);
 

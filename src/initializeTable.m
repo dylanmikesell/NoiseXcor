@@ -38,6 +38,7 @@ function stationData = initializeTable( project_directory, data_directory, ...
 % data_structure['IDDS'] = "YEAR/NET/STA/CHAN.TYPE/DAY/NET.STA.LOC.CHAN.TYPE.YEAR.DAY.HOUR"
 % data_structure['PDF']  = "YEAR/STA/CHAN.TYPE/NET.STA.LOC.CHAN.TYPE.YEAR.DAY"
 % data_structure['DMT']  = "continuous???/NET.STA.LOC.CHAN"
+% data_structure['ANT']  = "SAC/NET.STA.CHAN.YEARMONTHDAY"
 %
 % Written by: Dylan Mikesell (dylanmikesell@boisetate.edu)
 % Last modified: 4 September 2017
@@ -84,8 +85,9 @@ end
 %--------------------------------------------------------------------------
 assert(...
     strcmp(data_structure,'BUD')==1 ||...
-    strcmp(data_structure,'DMT')==1,...
-    'Data structure not recognized. Must be ''BUD'' or ''DMT''.');
+    strcmp(data_structure,'DMT')==1 ||...
+    strcmp(data_structure,'ANT')==1,...
+    'Data structure not recognized. Must be ''BUD'' or ''DMT'' or ''ANT''.');
 
 %--------------------------------------------------------------------------
 % scan through the data files in all subdirectories
@@ -103,6 +105,20 @@ switch data_structure % account for different naming conventions
         processed_idx = strfind( {fileList.folder}, 'processed' );
         kill_idx = cellfun('isempty', processed_idx);
         fileList(kill_idx) = [];
+    case 'ANT' % data_structure['ANT'] = "SAC/NET.STA.CHAN.YEARMONTHDAY"
+        % get list of files
+        a = dir( fullfile( data_directory, '20*') );
+        for this_dir = {a(1:numel(a)).name}
+            fprintf('Scanning %s\n',fullfile( data_directory, this_dir{1}, 'SAC') );
+            tmp_sac_files = dir( fullfile( data_directory, this_dir{1}, 'SAC', '*.sac') );
+            fprintf('Found %d sac files.\n',numel(tmp_sac_files));
+            if exist('fileList','var') ~= 1
+                fileList = tmp_sac_files;
+            else
+                fileList = [fileList; tmp_sac_files];
+            end
+        end
+
 end
 
 % remove directories from the list
@@ -110,7 +126,7 @@ dirIdx = [fileList.isdir];
 fileList(dirIdx) = [];
 clear dirIdx;
 
-% remove hidden files that start with '.'
+% remove any hidden files that start with '.'
 fileList = fileList( arrayfun( @(x) ~strcmp(x.name(1),'.'), fileList ) );
 
 %--------------------------------------------------------------------------
@@ -158,7 +174,7 @@ switch data_structure % account for different naming conventions
     case 'DMT' % data_structure['DMT'] = "continuous???/NET.STA.LOC.CHAN"
         
         % get information about the first file
-        file_info      = split( fileList(1).name, '.' );
+        file_info     = split( fileList(1).name, '.' );
         file_network  = file_info{1};
         file_station  = file_info{2};
         file_location = file_info{3};
@@ -190,6 +206,43 @@ switch data_structure % account for different naming conventions
                 instrument_list{ num_instruments } = instrument;
             end
         end % end loop over all files found 
+        
+    case 'ANT' % data_structure['ANT'] = "SAC/NET.STA.CHAN.YEARMONTHDAY"
+                
+        % get information about the first file
+        file_info     = split( fileList(1).name, '.' );
+        file_network  = file_info{1};
+        file_station  = file_info{2};
+        file_channel  = file_info{3};
+        file_location = '00';
+        
+        % Build the unique station identifier
+        instrument_list = {strcat(...
+            char(file_network), '.', char(file_station), '.',...
+            char(file_location), '.', char(file_channel) ) };
+        num_instruments = 1;
+        
+        for iFile = 2 : numel( fileList )
+            
+            file_info     = split( fileList(iFile).name, '.' );
+            file_network  = file_info{1};
+            file_station  = file_info{2};
+            file_channel  = file_info{3};
+            file_location = '00';
+
+            
+            % Build the unique station identifier
+            instrument = strcat(...
+                char(file_network), '.', char(file_station), '.',...
+                char(file_location), '.', char(file_channel) );
+            
+            % Check is instrument is already in list
+            if ~logical( sum( strcmp( instrument_list, instrument ) ) )
+                fprintf('Adding %s\n', instrument);
+                num_instruments = num_instruments + 1;
+                instrument_list{ num_instruments } = instrument;
+            end
+        end % end loop over all files found       
 end
 
 %--------------------------------------------------------------------------
@@ -264,7 +317,18 @@ for iFile = 1 : numel( fileList )
             file_network  = file_info{1};
             file_station  = file_info{2};
             file_location = file_info{3};
-            file_channel  = file_info{4};
+            file_channel  = file_info{4};    
+        case 'ANT' % data_structure['DMT'] = "continuous???/NET.STA.LOC.CHAN"
+            file_info     = split( fileList(iFile).name, '.' );
+            file_network  = file_info{1};
+            file_station  = file_info{2};
+            file_channel  = file_info{3};
+            file_location = '00';
+            file_date     = file_info{4};
+            file_year     = file_date(1:4);
+            file_month    = file_date(5:6);
+            file_day      = file_date(7:8);
+            
     end
 
     % Build the unique station identifier
@@ -289,6 +353,10 @@ for iFile = 1 : numel( fileList )
             case 'BUD'
                 % compute the data date
                 dataDate = datenum( [file_year '.' file_julian_day], 'yyyy.dd' );
+            case 'ANT'
+                % compute the data date
+                dataDate = datenum( [file_year '.' file_month '.' file_day], 'yyyy.mm.dd' );
+                
         end
         
         % check that data is in time window of interest
