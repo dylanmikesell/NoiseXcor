@@ -3,9 +3,9 @@ clear all
 clc
 
 % plot a correlation panel
-inputDir = './COR/00/TENZ-PV03';
-inputDir = './COR/00/CRIZ-TENZ';
-% inputDir = './COR/00/CRIZ-CRIZ';
+inputDir = './COR/00/ZZ/TENZ-PV03';
+inputDir = './COR/00/ZZ/CRIZ-TENZ';
+% inputDir = './COR/00/ZZ/CRIZ-CRIZ';
 
 time_limit = 30; % [s]
 
@@ -17,7 +17,8 @@ files(idx) = [];
 
 for ii = 1 : numel( files )
     load( fullfile( inputDir, files(ii).name ) );
-    Cmat(:,ii) = get( statC, 'c1' );
+%     Cmat(:,ii) = get( statC, 'c1' );
+    Cmat(:,ii) = double( statC );
 end
 
 dt     = 1 / get( statC, 'freq' );
