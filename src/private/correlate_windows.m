@@ -152,7 +152,7 @@ for tt = 1 : nWindows
         
         % apply amplitude normalization
         if corrFilter.ampNorm
-            wCut = waveformNormalization( wCut, corrFilter.timeNorm, corrFilter.wfmin );
+            wCut = waveform_normalization( wCut, corrFilter.timeNorm, corrFilter.wfmin );
         end
         
         if corrFilter.whiten
