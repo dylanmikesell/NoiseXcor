@@ -115,7 +115,7 @@ end % end loop through files
 
 %--------------------------------------------------------------------------
 fprintf('Adding station location information.\n');
-[latlon, stationName, network, elevation] = readStationFile( coordinate_file );
+[latlon, stationName, network, elevation] = read_station_file( coordinate_file );
 
 % Match the row of the data table with the station coordinate text file
 tmp_split = split( instrument_list, '.' );

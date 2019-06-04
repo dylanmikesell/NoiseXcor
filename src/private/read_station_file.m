@@ -1,7 +1,7 @@
 %--------------------------------------------------------------------------
 % Load station coordinate information
 %--------------------------------------------------------------------------
-function [latlon, stationName, network, elevation] = readStationFile( filename )
+function [latlon, stationName, network, elevation] = read_station_file( filename )
 
 [~,~,ext] = fileparts(filename);
 
