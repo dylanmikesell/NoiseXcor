@@ -1,11 +1,11 @@
 clear all
-% close all
+close all
 clc
 
 % plot a correlation panel
 inputDir = './COR/00/ZZ/TENZ-PV03';
 inputDir = './COR/00/ZZ/CRIZ-TENZ';
-% inputDir = './COR/00/ZZ/CRIZ-CRIZ';
+inputDir = './COR/00/ZZ/CRIZ-CRIZ';
 
 time_limit = 30; % [s]
 

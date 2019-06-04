@@ -55,7 +55,7 @@ tMaxSamp = tMax * Fs; % number of samples to save
 sampOut  = nSampWin-tMaxSamp+1 : nSampWin+tMaxSamp-1; % index for windowing correlations
 nSampOut = numel(sampOut); % number of correlation samples to save
 
-% Eliminate repeated stations and coordinates 
+% Eliminate repeated stations and coordinates
 [unq_station,unq_idx] = unique( stationTag );
 CoordTable2 = CoordTable(unq_idx,:);
 
@@ -63,149 +63,22 @@ CoordTable2 = CoordTable(unq_idx,:);
 for tt = 1 : nWindows
     
     windowStart = startTime + (windowIdx(tt)-1)/Fs/60/60/24;
-    windowStartSTR = datestr(windowStart,'HH:MM:SS.FFF');
-    
     windowEnd = startTime + (windowIdx(tt)-1+nSampWin)/Fs/60/60/24;
-    windowEndSTR = datestr(windowEnd,'HH:MM:SS.FFF');
+    fprintf('Correlating window %d of %d (%s: %s - %s)\n',...
+        tt, nWindows, datestr(startTime,'YYYY-mm-DD'),...
+        datestr(windowStart,'HH:MM:SS.FFF'),...
+        datestr(windowEnd,'HH:MM:SS.FFF') );
     
-    fprintf('Correlating window %d of %d (%s: %s - %s)\n', tt, nWindows, datestr(startTime,'YYYY-mm-DD'), windowStartSTR, windowEndSTR );
+    wCut = waveform_extract( windowStart, windowEnd, W, nSampWin, corrParam );
     
-    %----------------------------------------------------------------------
-    % extract this time window
-    wCut = extract( W, 'TIME', windowStart, windowEnd );
-    % There will be zero samples if this window is outside the data range
-    %     wCut = align( wCut, datestr(windowStart,'dd/mm/yyyy HH:MM:SS.FFF'), get(wCut(1),'freq'), 'pchip' );
-    %     wCut = align( wCut, datestr(min(get(wCut,'start')),'dd/mm/yyyy HH:MM:SS.FFF'), get(wCut(1),'freq'), 'pchip' );
-    %     wCut = pad(wCut,windowStart,windowEnd,0);
-    %----------------------------------------------------------------------
-    % remove empty waveforms in this window and any that are all zeros
-    % killIdx = ( get(wCut,'Data_Length') == 0 );
-    %     killIdx = ( sum( double(wCut) ) == 0 ); % returns True if data_legnth=0 as well.
-    %     wCut(killIdx) = []; % remove empty waveforms
-    %     if isempty(wCut)
-    %         disp('No data in this time window.');
-    %         continue % go to next iteration of loop over windows
-    %     end
+    wCut = waveform_preprocess( windowStart, windowEnd, wCut, corrFilter, Fs, nSampWin, jdebug );
     
-    %----------------------------------------------------------------------
-    % remove waveforms when duration is too short
-    traceDuration = get( wCut, 'duration' ) .* (24*3600); % [s] duration
-    freq = get(wCut,'freq');
-    killIdx = ( ceil( freq .* traceDuration ) <= 2*floor( nSampWin * 0.05 ) );
-    % returns True is duration is less than taper length
-    wCut(killIdx) = []; % remove empty waveforms
-    if isempty(wCut)
-        disp('No data in this time window.');
-        continue % go to next iteration of loop over windows
-    end
-    
-    %----------------------------------------------------------------------
-    % process the remaining waveforms in this time window
-    wCut = fillgaps( wCut, 0 ); % fill data gaps with zeros
-    wCut = demean( wCut ); % remove mean
-    wCut = detrend( wCut ); % remove linear trend
-
-    %----------------------------------------------------------------------
-    % Taper and resample waveforms before any other processing
-    for iTrace = 1 : numel( wCut )
-        % build 1 minute taper to make sure edges are zero
-        nTap  = floor( nSampWin * 0.05 ); % taper 5% on each side of trace
-        taper = tukeywin( 2*nTap-1, 1 ); % make taper that is twice as long
-        
-        data = double( wCut(iTrace) ); % get data
-        data(1:nTap) = taper(1:nTap) .* data(1:nTap); % taper front
-        nData = numel(data); % total number of samples
-        data(nData-nTap+1:end) = taper(nTap:end) .* data(nData-nTap+1:end); % taper back
-        
-        resampleFactor = round( get( wCut(iTrace), 'freq' ) ) / Fs;
-        remainder = mod( resampleFactor, floor(resampleFactor) );
-        
-        if remainder == 0
-            % then resample as normal
-            Q = resampleFactor;
-            data = resample( data, 1, Q );  % see matlab's resample for specifics
-        else % not an integer resample factor so first interpolate and then decimate
-            multiplyFactor = round( 1 / remainder );
-            data = resample( data, multiplyFactor, 1);
-            Q = multiplyFactor * resampleFactor;
-            data = resample( data, 1, Q );  % see matlab's resample for specifics
-        end
-        
-        % put back into waveform, but don't forget to update the frequency too
-        wCut(iTrace) = set( wCut(iTrace), 'data', data, 'freq', Fs );
-        % and for good measure... update the waveform's history
-        wCut(iTrace) = addhistory( wCut(iTrace), 'Resampled data outside of waveform object' );
-        
-    end
-    
-    %----------------------------------------------------------------------
-    % Set default that whitening has NOT occurred
-    wCut(:) = addfield( wCut(:), 'isWhite', false );
-    
-    % Apply spectral and amplitude normalization
-    if strcmp( corrFilter.wMethod, 'ftn' ) && corrFilter.whiten % apply frequency-time normalization in one step
-        
-        FB = [corrFilter.wfmin, corrFilter.wfmax]; % frequency band for whitening
-        wCut  = waveform_whiten( wCut, FB, corrFilter.wMethod ); % whiten the waveforms
-        
-    else % apply time normalization and frequency normalization
-        
-        % apply amplitude normalization
-        if corrFilter.ampNorm
-            wCut = waveform_normalization( wCut, corrFilter.timeNorm, corrFilter.wfmin );
-        end
-        
-        if corrFilter.whiten
-            FB = [corrFilter.wfmin, corrFilter.wfmax]; % frequency band for whitening
-            wCut  = waveform_whiten( wCut, FB, corrFilter.wMethod ); % whiten the waveforms
-        end
-        
-    end
-    % pad traces to they start at correct time --> This must be done after
-    % pre-processing
-    wCut = pad( wCut, windowStart, windowEnd, 0 );
-    
-    %----------------------------------------------------------------------
-    % pad waveforms to same length and align to start time
-    %     wCut = set( wCut, 'data_length', nSampWin );
-    %     wCut = align( wCut, datestr(windowStart,'dd/mm/yyyy HH:MM:SS.FFF'), Fs, 'pchip' );
-    %     wCut = set( wCut, 'data_length', nSampWin );
-    %     wCut = align( wCut, datestr(windowStart,'dd/mm/yyyy HH:MM:SS.FFF'), Fs );
-    %     plot(wCut); grid on;
-    %     xlim([10 20]);
-    
-    %----------------------------------------------------------------------
-    % Interpolate all waveforms to align at start time of this window
-    timeVector = (0:nSampWin-1) / Fs; % the true time vector we want
-    traceStart = datestr( get(wCut,'start'), 'SS.FFF'); % get all start times
-    
-    for iTrace = 1 : numel( wCut )
-        
-        if jdebug % print new start times afer alignment
-            fprintf( 'start time: %s\n', traceStart(iTrace,:) );
-        end
-        
-        % trace time vector depends on start time
-        traceTimeVector = str2double(traceStart(iTrace,:)) + timeVector;
-        data = double( wCut(iTrace) ); % get data
-        data = interp1( traceTimeVector, data, timeVector, 'pchip', 0 ); % extrapolate with 0
-        
-        wCut(iTrace) = set( wCut(iTrace), 'data', data ); % update data
-        wCut(iTrace) = set( wCut(iTrace), 'start', windowStart ); % update start time
-        
-        % and for good measure... update the waveform's history
-        wCut(iTrace) = addhistory( wCut(iTrace), 'Aligned traces with 1D interpolation' );
-    end
-    %     plot(wCut); grid on;
-    %     xlim([10 20]);
+    %     if corrParam.saveBeam
+    %         fprintf('Saving beamform data');
     %
-    
-    if corrParam.saveBeam
-        fprintf('Saving beamform data');
-        
-        save_beam(CoordTable,stationTag,wCut,corrParam)
-        
-    end
+    %         save_beam(CoordTable,stationTag,wCut,corrParam)
+    %
+    %     end
     %
     %
     % clc
@@ -220,7 +93,7 @@ for tt = 1 : nWindows
     % Get a unique list of stations without worrying about channels
     stations = unique(tmp_tag);
     nStats = numel( stations );
-
+    
     % Do rotation for a station pair and then correlation
     for ii = 1 : nStats
         
@@ -273,7 +146,7 @@ for tt = 1 : nWindows
                 % Get channel tags for this station
                 idx2 = strcmp(stations{jj},tmp_tag);
                 WB = wCut(idx2); % extract waveforms for this station (e.g. E,N,Z)
-
+                
                 % Get coordinates
                 idx2 = strcmp(stations{jj},unq_station);
                 lat_wb = CoordTable2(idx2,1);
@@ -281,7 +154,7 @@ for tt = 1 : nWindows
                 ele_wb = CoordTable2(idx2,3);
                 assert(numel(lat_wb)==1,'Did not find unique latitude for station 2');
                 assert(numel(lon_wb)==1,'Did not find unique longitude for station 2');
-
+                
                 % Arrange the channels and extract waveforms
                 if isa( get(WB,'channel'), 'char' ) % do not transpose
                     wb_channels = get(WB,'channel');
@@ -307,7 +180,7 @@ for tt = 1 : nWindows
                 if ~isempty(z_idx)
                     data_wb_enz(:,3) = double( WB(z_idx) );
                 end
-
+                
                 
                 % compute back-azimuth
                 % BAZ = azimuth( 'rh', lat_wb, lon_wb, lat_wa, lon_wa, 'degrees' )
@@ -340,79 +213,16 @@ for tt = 1 : nWindows
                             index2 = 3;
                     end
                     
-                    CC = normalizedCorrelation( data_wa_rtz(:,index1), data_wb_rtz(:,index2), Fs, corrParam.smoothMethod, corrParam.Wn, corrParam.K, isWhitend );
+                    CC = normalized_correlation( data_wa_rtz(:,index1),...
+                        data_wb_rtz(:,index2), Fs, corrParam.smoothMethod,...
+                        corrParam.Wn, corrParam.K, isWhitend );
                     % CC.c1: Autocorr energy normalized correlation: C12(t)/(C11(0)C22(0))
                     % CC.c2: Simple normalization (Coherence) C12(w)/({abs(S1(w))}{abs(S2(w))})
                     % CC.c3: Transfer function station normalization C12(w)/({abs(S1(w))^2})
                     
-                    % Get receiver information
-                    rec.name = get( WB(1),'station');
-                    rec.chan = get( WB(1),'channel');
-                    rec.chan(3) = corrParam.combinations{i_comb}(2);
-                    rec.net = get( WB(1),'network');
-                    rec.loc = get( WB(1),'location');
-                    % WB = receiver = ST
-                    
-                    % Get source information
-                    src.name = get( WA(1),'station');
-                    src.chan = get( WA(1),'channel');
-                    src.chan(3) = corrParam.combinations{i_comb}(1);
-                    src.net = get( WA(1),'network');
-                    src.loc = get( WA(1),'location');
-                    % WA = source = EV
-                    
-                    
-                    % set the basic WAVEFORM properties
-                    statC = waveform(); % blank waveform object to store new correlations
-                    
-                    statC = set( statC, 'Start', windowStart );
-                    statC = set( statC, 'freq', Fs );
-                    statC = set( statC, 'Data_Length', nSampOut ) ;
-                    statC = set( statC, 'Data', CC.c1(sampOut) );
-                    
-                    statC = set( statC, 'Station',  [src.name '-' rec.name] );
-                    statC = set( statC, 'Channel',  [src.chan '-' rec.chan] );
-                    statC = set( statC, 'Network',  [src.net '-' rec.net] );
-                    statC = set( statC, 'Location', [src.loc '-' rec.loc] );
-                    
-                    
-                    % add virtual source location information
-                    statC = addfield( statC, 'EVLA', lat_wa );
-                    statC = addfield( statC, 'EVLO', lon_wa );
-                    statC = addfield( statC, 'EVEL', ele_wa );
-                    % add receiver station location information
-                    statC = addfield( statC, 'STLA', lat_wb );
-                    statC = addfield( statC, 'STLO', lon_wb );
-                    statC = addfield( statC, 'STEL', ele_wb);
-                    % add inter-station information
-                    statC = addfield( statC, 'BAZ', BAZ );
-                    % DIST AZ (other SAC headers we could set)
-                    
-                    
-                    %                 % add windowed correlation functions and information
-                    %                 if isfield( CC, 'c1' )
-                    %                     statC = addfield( statC, 'c1', CC.c1(sampOut) );
-                    %                 end
-                    %                 if isfield( CC, 'c2' )
-                    %                     statC = addfield( statC, 'c2', CC.c2(sampOut)  );
-                    %                 end
-                    %                 if isfield(CC,'c3')
-                    %                     statC = addfield( statC, 'c3', CC.c3(sampOut)  );
-                    %                 end
-                    %                 statC = addfield( statC, 'smoothMethod', corrParam.smoothMethod );
-                    %                 statC = addfield( statC, 'Wn', corrParam.Wn );
-                    %                 statC = addfield( statC, 'K', corrParam.K );
-                    
-                    station   = get(statC,'station'); % get station pair
-                    startDate = [datestr(get(statC,'start'),'yyyy_mm_dd') '_window_' num2str(tt,'%03d')];
-                    
-                    basepath = fullfile(outputDirectory,corrParam.combinations{i_comb},station);
-                    if ~isfolder(basepath)
-                        mkdir(basepath);
-                    end
-                    
-                    fname = fullfile(basepath,[startDate '.mat']);
-                    save(fname,'statC','-v7.3'); % write NEW matrix file out
+                    write_correlation( corrParam.combinations, i_comb, WB, WA, windowStart, Fs,...
+                        nSampOut, CC, lat_wa, lon_wa, ele_wa, lat_wb, lon_wb, ele_wb, BAZ, ...
+                        tt, outputDirectory, sampOut)
                     
                 end % components ('ZZ','RR',etc.)
                 
@@ -426,73 +236,77 @@ for tt = 1 : nWindows
                     
                     fprintf('Computing %s autocorrelation\n', combinations{i_comb} );
                     
-                    CC = normalizedCorrelation( data_wa_enz(:,i_comb), data_wa_enz(:,i_comb), Fs, corrParam.smoothMethod, corrParam.Wn, corrParam.K, isWhitend );
+                    CC = normalized_correlation( data_wa_enz(:,i_comb), data_wa_enz(:,i_comb), Fs, corrParam.smoothMethod, corrParam.Wn, corrParam.K, isWhitend );
                     % CC.c1: Autocorr energy normalized correlation: C12(t)/(C11(0)C22(0))
                     % CC.c2: Simple normalization (Coherence) C12(w)/({abs(S1(w))}{abs(S2(w))})
                     % CC.c3: Transfer function station normalization C12(w)/({abs(S1(w))^2})
-                    
-%                     figure;
-%                     plot(CC.c1)
-                    
-                    % Get receiver information
-                    rec.name = get( WA(1),'station');
-                    rec.chan = get( WA(1),'channel');
-                    rec.chan(3) = combinations{i_comb}(2);
-                    rec.net = get( WA(1),'network');
-                    rec.loc = get( WA(1),'location');
-                    % WB = receiver = ST
-                    
-                    % Get source information
-                    src.name = get( WA(1),'station');
-                    src.chan = get( WA(1),'channel');
-                    src.chan(3) = combinations{i_comb}(1);
-                    src.net = get( WA(1),'network');
-                    src.loc = get( WA(1),'location');
-                    % WA = source = EV
-                    
-                    % set the basic WAVEFORM properties
-                    statC = waveform(); % blank waveform object to store new correlations
-                    
-                    statC = set( statC, 'Start', windowStart );
-                    statC = set( statC, 'freq', Fs );
-                    statC = set( statC, 'Data_Length', nSampOut ) ;
-                    statC = set( statC, 'Data', CC.c1(sampOut) );
-                    
-                    statC = set( statC, 'Station',  [src.name '-' rec.name] );
-                    statC = set( statC, 'Channel',  [src.chan '-' rec.chan] );
-                    statC = set( statC, 'Network',  [src.net '-' rec.net] );
-                    statC = set( statC, 'Location', [src.loc '-' rec.loc] );
-                    
-                    % add virtual source location information
-                    statC = addfield( statC, 'EVLA', lat_wa );
-                    statC = addfield( statC, 'EVLO', lon_wa );
-                    statC = addfield( statC, 'EVEL', ele_wa );
-                    % add receiver station location information
-                    statC = addfield( statC, 'STLA', lat_wa );
-                    statC = addfield( statC, 'STLO', lon_wa );
-                    statC = addfield( statC, 'STEL', ele_wa);
-                    % add inter-station information
-                    statC = addfield( statC, 'BAZ', 0 );
-                    % DIST AZ (other SAC headers we could set)
-                    
-                    station   = get(statC,'station'); % get station pair
-                    startDate = [datestr(get(statC,'start'),'yyyy_mm_dd') '_window_' num2str(tt,'%03d')];
-                    
-                    basepath = fullfile(outputDirectory,combinations{i_comb},station);
-                    if ~isfolder(basepath)
-                        mkdir(basepath);
-                    end
-                    
-                    fname = fullfile(basepath,[startDate '.mat']);
-                    save(fname,'statC','-v7.3'); % write NEW matrix file out
-                
+                    BAZ = 0;
+                    write_correlation( combinations, i_comb, WA, WA, windowStart, Fs,...
+                        nSampOut, CC, lat_wa, lon_wa, ele_wa, lat_wa, lon_wa, ele_wa, BAZ, ...
+                        tt, outputDirectory, sampOut)
+%                     
+%                     %                     figure;
+%                     %                     plot(CC.c1)
+%                     
+%                     % Get receiver information
+%                     rec.name = get( WA(1),'station');
+%                     rec.chan = get( WA(1),'channel');
+%                     rec.chan(3) = combinations{i_comb}(2);
+%                     rec.net = get( WA(1),'network');
+%                     rec.loc = get( WA(1),'location');
+%                     % WB = receiver = ST
+%                     
+%                     % Get source information
+%                     src.name = get( WA(1),'station');
+%                     src.chan = get( WA(1),'channel');
+%                     src.chan(3) = combinations{i_comb}(1);
+%                     src.net = get( WA(1),'network');
+%                     src.loc = get( WA(1),'location');
+%                     % WA = source = EV
+%                     
+%                     % set the basic WAVEFORM properties
+%                     statC = waveform(); % blank waveform object to store new correlations
+%                     
+%                     statC = set( statC, 'Start', windowStart );
+%                     statC = set( statC, 'freq', Fs );
+%                     statC = set( statC, 'Data_Length', nSampOut ) ;
+%                     statC = set( statC, 'Data', CC.c1(sampOut) );
+%                     
+%                     statC = set( statC, 'Station',  [src.name '-' rec.name] );
+%                     statC = set( statC, 'Channel',  [src.chan '-' rec.chan] );
+%                     statC = set( statC, 'Network',  [src.net '-' rec.net] );
+%                     statC = set( statC, 'Location', [src.loc '-' rec.loc] );
+%                     
+%                     % add virtual source location information
+%                     statC = addfield( statC, 'EVLA', lat_wa );
+%                     statC = addfield( statC, 'EVLO', lon_wa );
+%                     statC = addfield( statC, 'EVEL', ele_wa );
+%                     % add receiver station location information
+%                     statC = addfield( statC, 'STLA', lat_wa );
+%                     statC = addfield( statC, 'STLO', lon_wa );
+%                     statC = addfield( statC, 'STEL', ele_wa);
+%                     % add inter-station information
+%                     statC = addfield( statC, 'BAZ', 0 );
+%                     % DIST AZ (other SAC headers we could set)
+%                     
+%                     station   = get(statC,'station'); % get station pair
+%                     startDate = [datestr(get(statC,'start'),'yyyy_mm_dd') '_window_' num2str(tt,'%03d')];
+%                     
+%                     basepath = fullfile(outputDirectory,combinations{i_comb},station);
+%                     if ~isfolder(basepath)
+%                         mkdir(basepath);
+%                     end
+%                     
+%                     fname = fullfile(basepath,[startDate '.mat']);
+%                     save(fname,'statC','-v7.3'); % write NEW matrix file out
+%                     
                 end % components ('ZZ','EE','NN')
                 
             end % if autocorrelation or crosscorrelation
         end % jj loop over WB
     end %  ii loop over WA
 end % loop over time windows
-end % end correlateWindows() function
+end % end correlate_windows() function
 
 %----------------------------------------------------------------------
 %----------------------------------------------------------------------

@@ -3,7 +3,7 @@ close all
 clc
 
 % addpath('../src'); % add source path with MATLAB functions
-addpath(genpath('/hammer/SOFTWARE/NoiseXcor/src')); % source files and subroutines
+addpath('/hammer/SOFTWARE/NoiseXcor/src'); % source files and subroutines
 
 dataBaseName  = './Peteroa_db.mat'; % what did you want call your database. 
 % Include full path if not in current directory.
@@ -16,13 +16,13 @@ corrFilter.prefilt   = 1; % 1 if prefilter, 0 if no prefilter
 %--------------------------------------------------------------------------
 % time domain normalization
 corrFilter.ampNorm  = 1; % =1 if normalize, =0 if no amplitude normalization
-corrFilter.timeNorm = 'bit'; % 'abs', 'bit', 'rms'
+corrFilter.timeNorm = 'abs'; % 'abs', 'bit', 'rms'
 %--------------------------------------------------------------------------
 % spectral whitening
 corrFilter.whiten  = 1; % 0=off, 1=on
-corrFilter.wfmin   = 0.5; % [Hz] low end of whitening
-corrFilter.wfmax   = 5.0; % [Hz] high end of whitening
-corrFilter.wMethod = 'poli';
+corrFilter.wfmin   = 0.05; % [Hz] low end of whitening
+corrFilter.wfmax   = 1.0; % [Hz] high end of whitening
+corrFilter.wMethod = 'ftn';
 % wMethod = type of whitening to apply. Can be the following:
 % 'ftn'   = frequency-time normalization (Shen et al. 2012).
 % 'poli'  = moving window from Piero Poli
@@ -33,8 +33,8 @@ corrFilter.wMethod = 'poli';
 corrParam.windowLengthMinutes = 60*4; % [min] correlation window length
 corrParam.overlapPercent      = 0.0; % size of overlap [e.g. 1=100%, 0=0%, 0.5=50%]
 corrParam.tMaxOut             = 120; % [sec] maximum time length to save of the correlation function (this is for one direction so actual correlation trace will be twice the this length)
-corrParam.resampleFrequency   = 20; % [Hz] save computation time by resampling data prior to correlation...also saves disk space when writing output
-corrParam.combinations        = {'ZZ','RR'}; % can be ZZ,ZE,ZN,EZ,EE,EN,NZ,NE,NN
+corrParam.resampleFrequency   = 5; % [Hz] save computation time by resampling data prior to correlation...also saves disk space when writing output
+corrParam.combinations        = {'ZZ','RR'}; % can be ZZ,RR,TT,ZR,ZT,RZ,TZ,RT,TR,EE,NN
 
 % Beamforming data routines (not fully implemented yet)
 corrParam.saveBeam            = 0; % 1=save, 0=do not save (writes beamform matrix)
