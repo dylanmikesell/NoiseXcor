@@ -3,6 +3,15 @@
 This is a MATLAB code that will compute noise cross correlations. 
 
 ---
+## UPDATE: 
+
+As of 1 July 2021 the __master__ branch has been renamed __main__. You need to execute the following code to make this change in your local repository.
+
+```  git branch -m master main
+git fetch origin
+git branch -u origin/main main
+git remote set-head origin -a
+```
 
 ### Preliminaries:
 
