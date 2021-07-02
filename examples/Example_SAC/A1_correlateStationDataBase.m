@@ -3,7 +3,7 @@ close all
 clc
 
 % addpath('../src'); % add source path with MATLAB functions
-addpath('/hammer/SOFTWARE/NoiseXcor/src'); % source files and subroutines
+% addpath('/hammer/SOFTWARE/NoiseXcor/src'); % source files and subroutines
 
 dataBaseName  = './Peteroa_db.mat'; % what did you want call your database. 
 % Include full path if not in current directory.

@@ -2,13 +2,14 @@ clear all
 close all
 clc
 
+noisexPATH = '/Users/dmikesell/GIT/NoiseXcor/';
+addpath( fullfile( noisexPATH, 'src' ) );
+
 % This script will look into a single data directory and make a database of
 % all possible data files that can be correlated.
 
-addpath('/hammer/SOFTWARE/NoiseXcor/src');
-
 % folder where all files will be written
-project_directory = '/hammer/SOFTWARE/NoiseXcor/Example_SAC';
+project_directory = fullfile( noisexPATH, 'Example_SAC' );
 
 data_directory = fullfile( project_directory, 'DATA'); % where are the data?
 
