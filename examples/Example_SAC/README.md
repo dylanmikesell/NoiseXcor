@@ -1,23 +1,27 @@
-# This example demonstrates how to run wavefield noise correlations with _NoiseXcor_
+# NoiseXcor Example 1
+
+This example demonstrates how to run wavefield noise correlations with SAC format data from two seismic networks in Chile.
 
 ### The main codes:
 
-The code works in two parts. 
+The code works in two parts. Each part has its own script.
 
-* The first part (__A0_makeStationDataBase.m__) scans a folder for valid data and creates a database of files to be correlated.
-* The second part (__A1_correlateStationDataBase.m__) reads the database, preprocesses the data and runs the correlations based on user specified parameters.
+1.  __A0_makeStationDataBase.m__ scans a folder for valid data and creates a database of files to be correlated.
+2. __A1_correlateStationDataBase.m__ reads the database, preprocesses the data and runs the correlations based on user specified parameters.
 
-You can download test data [here](http://cgiss.boisestate.edu/~dmikesell/data.zip). Unzip the file. It should create a DATA/ folder. Make sure to put this DATA/ folder into the _Example\_SAC_ directory.
+You can download an example dataset [here](https://drive.google.com/file/d/1Wy4ycOEPMRJd8wzwEgbPuQ2T9rhkvu-J/view?usp=sharing). Unzip the file _sac_data.zip_. It should create a _DATA/_ folder. Put this _DATA/_ folder into the _Example\_SAC/_ directory.
 
-Each correlation is written to a new _waveform_ object with proper metadata. These correlation-derived waveforms can then be loaded into MATLAB for further processing (e.g. visualization, stacking, velocity analysis, etc.).
+### How does the code work?
 
-NOTE: There is a simple script (__A2_plotStationPairCorrelationPanel.m__) that can be used to plot a correlation panel (i.e. all of the correlations between two receivers).
+Each correlation is stored as _waveform_ object (from GISMOTOOLS) with proper metadata (i.e. SAC header information). These correlation-derived waveforms can then be loaded into MATLAB for further processing (e.g. visualization, stacking, velocity analysis, etc.).
+
+NOTE: There is a script (__A2_plotStationPairCorrelationPanel.m__) that can be used to plot a correlation panel (i.e. all of the correlations between two receivers).
 
 ---
 
 ### User parameters:
 
-Within each of the main codes, the user needs to set a few parameters. Below we list each parameter and give some details. Note that a working example can be found in the Example_SAC/ folder (you just need to put the DATA/ folder from the zip file in this directory).
+Within each of the main codes, the user needs to set a few parameters. Below we list each parameter and give some details.
 
 1) __A0_makeStationDataBase.m__
 
@@ -102,9 +106,15 @@ corrParam.resampleFrequency   = 20; % [Hz]
 % Also saves disk space when writing output waveforms.
 ```	
 
+#### A Note on the output folder structure
+
+The individual waveforms are each written to .mat file that contains the _waveform_ object of the correlation. A waveform object has built in metadata that is useful later on for post processing. The files for each station pair are stored in folders for each station pair. The __COR__ directory is created in the _project_directory_ under that directory can be multiple "filter" directories.
+
 3) __A2_plotStationPairCorrelationPanel.m__
 
-	inputDir = './COR/00/CRIZ-TENZ';
+```
+inputDir = './COR/00/CRIZ-TENZ';
+```
 	
 You can give the input directory and the code will plot that station pair. Here we plot the correlations between station CRIZ and station TENZ.
 
