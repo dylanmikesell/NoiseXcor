@@ -12,3 +12,6 @@ COR
 
 # Ignore all MATLAB files
 **/*.mat
+
+# Ignore all ZIP files
+**/*.zip
