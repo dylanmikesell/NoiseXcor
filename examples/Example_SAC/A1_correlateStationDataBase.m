@@ -1,12 +1,10 @@
-clear all
-close all
-clc
+clear; close all; clc
 
-% addpath('../src'); % add source path with MATLAB functions
-% addpath('/hammer/SOFTWARE/NoiseXcor/src'); % source files and subroutines
+% -------------------------------------------------------------------------
+% The user needs to set the following variables.
 
-dataBaseName  = './Peteroa_db.mat'; % what did you want call your database. 
 % Include full path if not in current directory.
+dataBaseName  = './Peteroa_db.mat'; 
 
 %--------------------------------------------------------------------------
 corrFilter.filterNum = 0; % filter number is used to write correlations and keep track of completed jobs
@@ -36,24 +34,19 @@ corrParam.tMaxOut             = 120; % [sec] maximum time length to save of the 
 corrParam.resampleFrequency   = 5; % [Hz] save computation time by resampling data prior to correlation...also saves disk space when writing output
 corrParam.combinations        = {'ZZ','RR'}; % can be ZZ,RR,TT,ZR,ZT,RZ,TZ,RT,TR,EE,NN
 
-% Beamforming data routines (not fully implemented yet)
-corrParam.saveBeam            = 0; % 1=save, 0=do not save (writes beamform matrix)
-corrParam.beam_cmin           = 1.0; % [km/s] minimum velocity for beam forming
-
 % extra parameters for amplitude recovery of correlations (development
 % code). Just leave as is for now.
 corrParam.smoothMethod = 'taper'; % can be 'taper' or 'median'
 corrParam.Wn           = 3;
 corrParam.K            = 2*corrParam.Wn-1;
+
 %--------------------------------------------------------------------------
 % parallel computation parameters
 np = 1; % number of processors to use
 
-%--------------------------------------------------------------------------
-%--------------------------------------------------------------------------
-% END USER INPUT
-%--------------------------------------------------------------------------
-%--------------------------------------------------------------------------
+% -------------------------------------------------------------------------
+% End of user input
+% -------------------------------------------------------------------------
 
 % Run the correlations
 initializeCorrelation( ...

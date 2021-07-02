@@ -1,31 +1,40 @@
-clear all
-close all
-clc
+clear; close all; clc
 
-noisexPATH = '/Users/dmikesell/GIT/NoiseXcor/';
-addpath( fullfile( noisexPATH, 'src' ) );
+% This example script scans the folder Example_SAC/DATA, which contains
+% continuous seismic data from the TC and ZV networks surrounding Peteroa
+% volcano in Chile/Argentina. The output of this script is a database
+% called Peteroa_db.mat. This database is then load in the second script to
+% compute correlations from all of the data in the found in DATA/.
 
-% This script will look into a single data directory and make a database of
-% all possible data files that can be correlated.
+% -------------------------------------------------------------------------
+% The user needs to set the following variables.
 
-% folder where all files will be written
-project_directory = fullfile( noisexPATH, 'Example_SAC' );
+% Must be complete path to where you want to save data
+project_directory = '/Users/dmikesell/GIT/NoiseXcor/examples/Example_SAC';
+% All files will be written to this directory.
 
-data_directory = fullfile( project_directory, 'DATA'); % where are the data?
-
-database_name  = 'Peteroa_db.mat'; % what do you want call your database
-
+% continuous data information (in the project folder for convenience)
+data_directory = fullfile( project_directory, 'DATA'); % path to data
 file_type       = 'sac'; % 'sac', 'seed', 'miniseed' (only 'sac' implemented)
 data_structure  = 'BUD'; % 'SDS', 'BUD', 'IDDS', 'PDF', 'DMT' (only 'BUD', 'DMT', 'ANT' implemented)
-channel         = {'BHZ','HHZ','EHZ'}; % a cell list of any channels to use
 
-% Station coodinates: formatted text file
+% Station coodinates: this is a formatted text file
 % Columns are:  NAME    NET     LAT     LON     ELE
-coordinate_file = './station_coordinates.csv'; % This is the coordinate file (CSV or TXT)
+coordinate_file = fullfile( data_directory, 'station_coordinates.csv'); 
+% This is the coordinate file (CSV or TXT)
 
 % enter time of earliest data -- MAT file names are relative to this.
 start_date = '2012-01-01 00:00:00'; % ['YYYY-MM-DD HH:MM:SS.FFF']
 end_date   = '2012-01-30 00:00:00'; % ['YYYY-MM-DD HH:MM:SS.FFF']
+
+% The user can choose which channels are scanned for.
+channel = {'BHZ','HHZ','EHZ'}; % a cell list of any channels to use
+
+database_name  = 'Peteroa_db.mat'; % what do you want call your database
+
+% -------------------------------------------------------------------------
+% End of user input
+% -------------------------------------------------------------------------
 
 % create the data table
 stationData = initializeTable( ...

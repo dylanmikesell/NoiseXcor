@@ -40,4 +40,8 @@ clear dirIdx;
 % remove any hidden files that start with '.'
 fileList = fileList( arrayfun( @(x) ~strcmp(x.name(1),'.'), fileList ) );
 
+% remove any TXT or CSV files (e.g. station_coordinates.csv
+fileList = fileList( arrayfun( @(x) ~strcmp(x.name(end),'v'), fileList ) );
+fileList = fileList( arrayfun( @(x) ~strcmp(x.name(end),'t'), fileList ) );
+
 end % scan_files()

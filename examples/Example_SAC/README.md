@@ -1,4 +1,4 @@
-# NoiseXcor Example 1
+# NoiseXcor Example 1: continuous SAC data
 
 This example demonstrates how to run wavefield noise correlations with SAC format data from two seismic networks in Chile.
 
@@ -25,29 +25,72 @@ Within each of the main codes, the user needs to set a few parameters. Below we 
 
 1) __A0_makeStationDataBase.m__
 
-```
-% choose a folder where all files will be written
-project_directory = '/home/NoiseXcor/Example_SAC';
-	
-% indicate the data location
-data_directory = fullfile( project_directory, 'DATA');
-	
-% give your database a name
-database_name  = 'Peteroa_db.mat'; 
-	
-% Indicate the file format (e.g. 'sac', 'seed', 'miniseed')
-% This will eventually be any format that GISMOTOOLS can read
-file_type = 'sac'; % only 'sac' is implemented
-	
-% we decided to follow the structure of the MSNoise data format
-% (e.g. 'SDS', 'BUD', 'IDDS', 'PDF')
-data_structure = 'BUD'; % only 'BUD' is currently implemented
-	
-% enter time of earliest data to analyze
-start_date = '2012-01-01 00:00:00'; % ['YYYY-MM-DD HH:MM:SS.FFF']
+This script sets up the inputs for the function initializeTable(). An example call is below.
 
-% enter time of latest data to analyze
-end_date   = '2012-01-30 00:00:00'; % ['YYYY-MM-DD HH:MM:SS.FFF']
+```
+initializeTable( ...
+    project_directory, ...
+    data_directory, ...
+    database_name, ...
+    file_type, ...
+    data_structure, ...
+    start_date, ...
+    end_date, ...
+    channel, ...
+    coordinate_file ...
+    );
+```
+Below is an explanation of the function inputs. The database can also be returned if a variable is assigned the output of initializeTable(). For example
+
+```
+stationData = initializeTable( ... );
+```
+
+### Function inputs
+
+```
+project_directory = full path to folder where output files will be written
+data_directory    = full path to data
+database_name     = name of the datebase file to be created
+file_type         = 'sac', 'seed', 'miniseed' (only 'sac' implemented)
+data_structure    = 'SDS', 'BUD', 'IDDS', 'PDF', 'DMT' (only 'BUD' and 'DMT' currently implemented; 'DMT' only looks for data in the 'processed' folder!)
+start_date        = first day of database ['YYYY-MM-DD HH:MM:SS.FFF']
+end_date          = last day of database ['YYYY-MM-DD HH:MM:SS.FFF']
+channel_list      = channel_list (cell list of channels to use; e.g. {'BHZ','BHE'})
+coordinate_file   = txt or csv file containing station informaiton (1 row per station); each row should contain NAME, NET, LAT [deg], LON [deg], ELE [m]
+```
+
+#### Coordinate file example (do NOT include a header line!)
+
+```
+PV03, ZV, -35.257, -70.502, 2448
+AD2Z, TC, -35.148, -70.474, 2061
+CRIZ, TC, -35.191, -70.524, 2909
+TENZ, TC, -35.167, -70.504, 2264
+```
+
+
+### OUTPUT
+```
+%  stationData = a database structure containing file path information.
+%   The database file is populated and also written to disk.
+```
+
+
+### Example
+
+Here is the example from the _A0\_makeStationDataBase.m_ file in _Example\_SAC/_.
+
+```
+project_directory = '/Users/dmikesell/GIT/NoiseXcor/examples/Example_SAC';
+data_directory = fullfile( project_directory, 'DATA');
+file_type = 'sac';
+data_structure  = 'BUD'; 
+coordinate_file = fullfile( data_directory, 'station_coordinates.csv'); 
+start_date = '2012-01-01 00:00:00';
+end_date = '2012-01-30 00:00:00';
+channel = {'BHZ','HHZ','EHZ'};
+database_name  = 'Peteroa_db.mat';
 ```
 
 2) __A1_correlateStationDataBase.m__
@@ -118,13 +161,4 @@ inputDir = './COR/00/CRIZ-TENZ';
 	
 You can give the input directory and the code will plot that station pair. Here we plot the correlations between station CRIZ and station TENZ.
 
-### Extending to different formats
 
-The data formats follow the MSNoise format.
-
-	data_structure['SDS']  = "YEAR/NET/STA/CHAN.TYPE/NET.STA.LOC.CHAN.TYPE.YEAR.DAY"
-	data_structure['BUD']  = "NET/STA/STA.NET.LOC.CHAN.YEAR.DAY"
-	data_structure['IDDS'] = "YEAR/NET/STA/CHAN.TYPE/DAY/NET.STA.LOC.CHAN.TYPE.YEAR.DAY.HOUR"
-	data_structure['PDF']  = "YEAR/STA/CHAN.TYPE/NET.STA.LOC.CHAN.TYPE.YEAR.DAY"
-
-A user can alter src/initializeTable.m to incorporate new data formats. We have not yet had data in a format other than BUD, so we have not implemented anything else. If someone wants to share other formats, we would be happy to implement them. 
